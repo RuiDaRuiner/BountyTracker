@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warframe Bounty Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --panel:#14171a;
+    --panel-alt:#191d21;
+    --panel-hover:#1c2126;
+    --border:#23282e;
+    --border-soft:#1a1f24;
+    --text:#e7e9ec;
+    --text-2:#98a0a8;
+    --text-3:#666e77;
+    --accent:#c8a165;
+    --accent-soft:#c8a16522;
+    --warn:#e0a458;
+    --warn-soft:#e0a45822;
+    --crit:#d17869;
+    --crit-soft:#d1786922;
+    --rare:#b39ce0;
+    --uncommon:#83b088;
+    --common:#8a929b;
+    --radius-sm:6px;
+    --radius-md:10px;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Inter', system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--bg); color:var(--text); font-family:var(--sans); -webkit-font-smoothing:antialiased;}
+  body{padding-bottom:60px;}
+  ::selection{background:var(--accent-soft); color:var(--text);}
+  .wrap{max-width:1150px; margin:0 auto; padding:0 20px;}
+
+  /* HEADER */
+  header{border-bottom:1px solid var(--border); background:var(--panel);}
+  .header-inner{display:flex; align-items:center; justify-content:space-between; padding:14px 20px; gap:16px; flex-wrap:wrap;}
+  .brand{display:flex; flex-direction:column; gap:2px;}
+  .brand-title{font-size:15px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;}
+  .brand-sub{font-size:12px; color:var(--text-2); display:flex; align-items:center; gap:6px;}
+  .dot{width:6px; height:6px; border-radius:50%; background:var(--uncommon); display:inline-block; box-shadow:0 0 0 3px #83b08822;}
+  .refresh-btn{
+    display:flex; align-items:center; gap:6px;
+    background:var(--panel-alt); border:1px solid var(--border); color:var(--text-2);
+    font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:0.02em;
+    padding:8px 14px; border-radius:var(--radius-sm); cursor:pointer; transition:all .15s ease;
+  }
+  .refresh-btn:hover{background:var(--panel-hover); color:var(--text); border-color:#2d333a;}
+  .refresh-btn.spinning svg{animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* LOCATION TABS */
+  .location-bar{padding:16px 20px 0;}
+  .tabs{display:flex; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; max-width:420px;}
+  .tab{flex:1; text-align:center; padding:10px 12px; font-size:13px; font-weight:600; letter-spacing:0.04em; color:var(--text-3); background:var(--panel); cursor:pointer; transition:all .15s ease; border:none; font-family:var(--sans);}
+  .tab + .tab{border-left:1px solid var(--border);}
+  .tab.active{background:var(--accent-soft); color:var(--accent);}
+  .tab:hover:not(.active){color:var(--text-2); background:var(--panel-alt);}
+
+  /* CYCLE STRIP */
+  .cycle-strip{margin-top:12px; display:flex; align-items:center; gap:10px; font-size:13px; flex-wrap:wrap;}
+  .cycle-loc{color:var(--text); font-weight:600;}
+  .cycle-badge{font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:0.06em; padding:3px 8px; border-radius:4px; border:1px solid var(--border);}
+  .cycle-badge.day, .cycle-badge.vome{color:var(--accent); border-color:#c8a16544; background:var(--accent-soft);}
+  .cycle-badge.night, .cycle-badge.fass{color:#8ea0c9; border-color:#8ea0c944; background:#8ea0c922;}
+  .cycle-text{color:var(--text-2); font-family:var(--mono); font-size:12px;}
+
+  /* SEARCH + FILTER */
+  .controls{padding:18px 20px 4px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  .search-box{flex:1; min-width:220px; position:relative;}
+  .search-box input{
+    width:100%; background:var(--panel-alt); border:1px solid var(--border); color:var(--text);
+    font-family:var(--sans); font-size:14px; padding:10px 14px 10px 36px; border-radius:var(--radius-sm);
+    outline:none; transition:border-color .15s ease;
+  }
+  .search-box input:focus{border-color:var(--accent);}
+  .search-box input::placeholder{color:var(--text-3);}
+  .search-icon{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-3); font-size:14px; pointer-events:none;}
+  .filter-select{
+    background:var(--panel-alt); border:1px solid var(--border); color:var(--text-2); font-family:var(--sans);
+    font-size:13px; padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; outline:none;
+  }
+  .filter-select:focus{border-color:var(--accent);}
+  .filter-chips{display:flex; gap:6px;}
+  .chip{padding:9px 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--panel-alt); color:var(--text-3); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s ease; font-family:var(--sans);}
+  .chip.active{color:var(--accent); border-color:#c8a16544; background:var(--accent-soft);}
+  .chip:hover:not(.active){color:var(--text-2);}
+
+  /* SEARCH RESULTS */
+  .search-results{padding:14px 20px 0;}
+  .sr-header{font-size:12px; font-weight:700; letter-spacing:0.08em; color:var(--text-3); text-transform:uppercase; margin-bottom:8px;}
+  .sr-item-name{font-size:16px; font-weight:700; margin-bottom:10px; letter-spacing:0.02em;}
+  .sr-list{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
+  .sr-row{display:flex; align-items:center; justify-content:space-between; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px;}
+  .sr-row-left{display:flex; flex-direction:column; gap:2px;}
+  .sr-loc{color:var(--text); font-weight:600;}
+  .sr-meta{color:var(--text-3); font-size:12px; font-family:var(--mono);}
+  .sr-chance{font-family:var(--mono); font-weight:700; font-size:15px; color:var(--accent);}
+  .sr-empty{color:var(--text-3); font-size:13px; padding:20px 0;}
+
+  /* BOUNTY GRID */
+  .section-title{font-size:13px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3); margin:22px 20px 10px;}
+  .bounty-grid{padding:0 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:720px){.bounty-grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; transition:border-color .15s ease;}
+  .card:hover{border-color:#2c323a;}
+  .card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:2px;}
+  .card-level{font-size:11px; font-weight:700; letter-spacing:0.06em; color:var(--text-3); font-family:var(--mono);}
+  .card-timer{font-family:var(--mono); font-size:17px; font-weight:600; color:var(--text); text-align:right; line-height:1.1;}
+  .card-timer-label{font-size:10px; color:var(--text-3); text-align:right; font-weight:500; letter-spacing:0.03em;}
+  .card-timer.warn{color:var(--warn);}
+  .card-timer.crit{color:var(--crit);}
+  .card-title{font-size:15px; font-weight:600; margin-top:8px;}
+  .card-sub{font-size:12px; color:var(--text-2); margin-top:2px; display:flex; align-items:center; gap:6px;}
+  .rotation-tag{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--text-3);}
+  .card-faction{font-size:12px; color:var(--text-3); margin-top:6px;}
+
+  .card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);}
+  .reward-preview{font-size:12px; color:var(--text-2);}
+  .reward-preview b{color:var(--text); font-weight:600;}
+  .view-rewards{
+    background:none; border:1px solid var(--border); color:var(--text-2); font-family:var(--sans);
+    font-size:12px; font-weight:600; padding:7px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:all .15s ease; white-space:nowrap;
+  }
+  .view-rewards:hover{color:var(--accent); border-color:#c8a16544; background:var(--accent-soft);}
+  .view-rewards.open{color:var(--accent); border-color:#c8a16544; background:var(--accent-soft);}
+
+  /* REWARD DETAIL (expand) */
+  .detail{max-height:0; overflow:hidden; transition:max-height .25s ease;}
+  .detail.open{max-height:900px; transition:max-height .35s ease;}
+  .detail-inner{margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);}
+  .stage-tabs{display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px;}
+  .stage-tab{
+    font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:0.03em;
+    padding:5px 10px; border-radius:4px; border:1px solid var(--border); background:var(--panel-alt);
+    color:var(--text-3); cursor:pointer; transition:all .15s ease;
+  }
+  .stage-tab.active{color:var(--accent); border-color:#c8a16544; background:var(--accent-soft);}
+  .reward-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .reward-table th{text-align:left; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3); font-weight:700; padding-bottom:6px; border-bottom:1px solid var(--border-soft);}
+  .reward-table th:last-child, .reward-table td:last-child{text-align:right;}
+  .reward-table td{padding:7px 0; border-bottom:1px solid var(--border-soft);}
+  .reward-table tr:last-child td{border-bottom:none;}
+  .reward-name{display:flex; align-items:center; gap:7px;}
+  .rarity-dot{width:6px; height:6px; border-radius:50%; flex-shrink:0;}
+  .rarity-dot.rare{background:var(--rare);}
+  .rarity-dot.uncommon{background:var(--uncommon);}
+  .rarity-dot.common{background:var(--common);}
+  .reward-chance{font-family:var(--mono); font-weight:600;}
+  .reward-bar-wrap{display:flex; align-items:center; gap:8px; justify-content:flex-end;}
+  .reward-bar{height:4px; background:var(--border); border-radius:2px; overflow:hidden; width:48px;}
+  .reward-bar-fill{height:100%; background:var(--accent); opacity:0.6;}
+
+  footer{margin-top:30px; padding:16px 20px; text-align:center; color:var(--text-3); font-size:11px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-title">Warframe Bounty Tracker</div>
+      <div class="brand-sub"><span class="dot"></span><span id="statusText">Cetus &amp; Necralisk · Online</span></div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v6h-6"/></svg>
+      Refresh
+    </button>
+  </div>
+
+  <div class="location-bar">
+    <div class="tabs">
+      <button class="tab active" data-loc="cetus">CETUS</button>
+      <button class="tab" data-loc="necralisk">NECRALISK</button>
+    </div>
+    <div class="cycle-strip">
+      <span class="cycle-loc" id="cycleLocName">Cetus</span>
+      <span class="cycle-badge day" id="cycleBadge">DAY</span>
+      <span class="cycle-text" id="cycleText">loading cycle…</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="searchInput" placeholder="Search rewards…" autocomplete="off">
+    </div>
+    <select class="filter-select" id="levelFilter">
+      <option value="all">All Levels</option>
+      <option value="low">Low (5–15)</option>
+      <option value="lowmid">Low–Mid (10–30)</option>
+      <option value="mid">Mid (20–40)</option>
+      <option value="midhigh">Mid–High (30–50)</option>
+      <option value="high">High (40–60)</option>
+    </select>
+    <div class="filter-chips" id="searchScopeChips" style="display:none;">
+      <button class="chip active" data-scope="all">All</button>
+      <button class="chip" data-scope="cetus">Cetus</button>
+      <button class="chip" data-scope="necralisk">Necralisk</button>
+    </div>
+  </div>
+
+  <div class="search-results" id="searchResults" style="display:none;"></div>
+
+  <div id="bountySection">
+    <div class="section-title" id="bountySectionTitle">Active Bounties — Cetus</div>
+    <div class="bounty-grid" id="bountyGrid"></div>
+  </div>
+
+  <footer>Cycle data from api.warframestat.us · Bounty timers &amp; reward odds are reference values for layout purposes</footer>
+</div>
+
+<script>
+/* ---------------- DATA ---------------- */
+
+const TIERS = [
+  { id:'low',      title:'Low Level Bounty',      level:'5–15',   stages:2, filter:'low' },
+  { id:'lowmid',    title:'Low–Mid Level Bounty',  level:'10–30',  stages:3, filter:'lowmid' },
+  { id:'mid',       title:'Mid Level Bounty',      level:'20–40',  stages:4, filter:'mid' },
+  { id:'midhigh',   title:'Mid–High Level Bounty', level:'30–50',  stages:5, filter:'midhigh' },
+  { id:'high',      title:'High Level Bounty',     level:'40–60',  stages:5, filter:'high' },
+];
+
+const REWARD_POOLS = {
+  cetus: ['Aya','Endo','Forma','Necramech part','Neurodes','Riven Mod','Ayatan Sculpture','Orokin Cell','Credits Cache','Ostron Standing Boost','Kuva','Ivara Systems','Zaw Blueprint','Kavat Genetic Code'],
+  necralisk: ['Aya','Endo','Forma','Necramech part','Mother Token','Entrati Standing Boost','Void Fissure Key','Xaku Component','Steel Essence','Sporelacer Blueprint','Kuva','Credits Cache','Necraloid Mod','Orokin Cell'],
+};
+
+const RARITY = { 'Aya':'rare', 'Necramech part':'rare', 'Riven Mod':'rare', 'Xaku Component':'rare', 'Ivara Systems':'rare',
+  'Forma':'uncommon', 'Ayatan Sculpture':'uncommon', 'Steel Essence':'uncommon', 'Mother Token':'uncommon', 'Zaw Blueprint':'uncommon', 'Sporelacer Blueprint':'uncommon' };
+function rarityOf(name){ return RARITY[name] || 'common'; }
+
+function seededRandom(seed){
+  let s = seed % 2147483647; if(s<=0) s += 2147483646;
+  return function(){ s = s*16807 % 2147483647; return (s-1)/2147483646; };
+}
+
+function buildBounty(loc, tier, idx){
+  const rand = seededRandom(loc.charCodeAt(0)*97 + tier.id.length*13 + idx*7 + 11);
+  const pool = REWARD_POOLS[loc];
+  const rotationSeq = ['A','A','B','C','C'];
+  const stages = [];
+  for(let s=0; s<tier.stages; s++){
+    const n = 3 + Math.floor(rand()*2); // 3-4 rewards per stage
+    const picks = [];
+    const used = new Set();
+    while(picks.length < n){
+      const item = pool[Math.floor(rand()*pool.length)];
+      if(!used.has(item)){ used.add(item); picks.push(item); }
+    }
+    let remaining = 100;
+    const weights = picks.map(()=> 0.3 + rand());
+    const totalW = weights.reduce((a,b)=>a+b,0);
+    const chances = weights.map(w => Math.round((w/totalW)*100*100)/100);
+    // normalize rounding drift
+    const diff = 100 - chances.reduce((a,b)=>a+b,0);
+    chances[0] = Math.round((chances[0]+diff)*100)/100;
+    stages.push({
+      label: 'Stage ' + (s+1),
+      rotation: rotationSeq[Math.min(s, rotationSeq.length-1)],
+      rewards: picks.map((name,i) => ({ name, chance: chances[i] })).sort((a,b)=>b.chance-a.chance)
+    });
+  }
+  return {
+    id: loc+'-'+tier.id,
+    loc, tier: tier.id, level: tier.level, title: tier.title,
+    rotation: stages[stages.length-1].rotation,
+    stages,
+    initSeconds: 120 + Math.floor(rand()*1500)
+  };
+}
+
+const LOCATIONS = {
+  cetus:     { name:'Cetus',        faction:'Ostron',    dayLabel:'DAY',  nightLabel:'NIGHT' },
+  necralisk: { name:'Necralisk',    faction:'Necraloid', dayLabel:'VOME', nightLabel:'FASS'  },
+};
+
+let bounties = { cetus: [], necralisk: [] };
+['cetus','necralisk'].forEach(loc => {
+  bounties[loc] = TIERS.map((tier, i) => buildBounty(loc, tier, i));
+});
+
+const timerState = {}; // id -> seconds remaining
+Object.values(bounties).flat().forEach(b => timerState[b.id] = b.initSeconds);
+
+/* ---------------- STATE ---------------- */
+
+let currentLoc = 'cetus';
+let openCard = null;      // bounty id currently expanded
+let openStage = {};       // bounty id -> stage index
+let levelFilterVal = 'all';
+let searchScope = 'all';
+
+/* ---------------- CYCLE FETCH ---------------- */
+
+let cycleData = { cetus:null, necralisk:null };
+
+async function fetchCycles(){
+  try{
+    const [c, n] = await Promise.all([
+      fetch('https://api.warframestat.us/pc/cetusCycle').then(r=>r.json()),
+      fetch('https://api.warframestat.us/pc/cambionCycle').then(r=>r.json())
+    ]);
+    cycleData.cetus = c;
+    cycleData.necralisk = n;
+  }catch(e){
+    cycleData.cetus = null;
+    cycleData.necralisk = null;
+  }
+  renderCycle();
+}
+
+function fmtDuration(ms){
+  if(ms == null || isNaN(ms) || ms < 0) return '—';
+  const totalSec = Math.floor(ms/1000);
+  const m = Math.floor(totalSec/60);
+  const s = totalSec % 60;
+  return (m+'m ' + String(s).padStart(2,'0') + 's');
+}
+
+function renderCycle(){
+  const loc = LOCATIONS[currentLoc];
+  document.getElementById('cycleLocName').textContent = loc.name;
+  const badge = document.getElementById('cycleBadge');
+  const text = document.getElementById('cycleText');
+  const d = cycleData[currentLoc];
+
+  if(!d){
+    badge.textContent = '—';
+    badge.className = 'cycle-badge';
+    text.textContent = 'cycle data unavailable';
+    return;
+  }
+
+  const expiry = new Date(d.expiry).getTime();
+  const remaining = expiry - Date.now();
+
+  if(currentLoc === 'cetus'){
+    const isDay = d.isDay;
+    badge.textContent = isDay ? 'DAY' : 'NIGHT';
+    badge.className = 'cycle-badge ' + (isDay ? 'day' : 'night');
+    text.textContent = (isDay ? 'Night' : 'Day') + ' in ' + fmtDuration(remaining);
+  } else {
+    const active = (d.active || '').toLowerCase();
+    const isFass = active === 'fass';
+    badge.textContent = isFass ? 'FASS' : 'VOME';
+    badge.className = 'cycle-badge ' + (isFass ? 'fass' : 'vome');
+    text.textContent = (isFass ? 'Vome' : 'Fass') + ' in ' + fmtDuration(remaining);
+  }
+}
+
+setInterval(renderCycle, 1000);
+
+/* ---------------- RENDER BOUNTIES ---------------- */
+
+function fmtTimer(sec){
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
+  return String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
+}
+
+function timerClass(sec){
+  if(sec < 60) return 'crit';
+  if(sec < 300) return 'warn';
+  return '';
+}
+
+function previewRewards(bounty){
+  const names = new Set();
+  bounty.stages.forEach(st => st.rewards.slice(0,2).forEach(r => names.add(r.name)));
+  return Array.from(names).slice(0,3);
+}
+
+function renderBounties(){
+  const grid = document.getElementById('bountyGrid');
+  const loc = LOCATIONS[currentLoc];
+  document.getElementById('bountySectionTitle').textContent = 'Active Bounties — ' + loc.name;
+
+  let list = bounties[currentLoc];
+  if(levelFilterVal !== 'all'){
+    list = list.filter(b => b.tier === levelFilterVal);
+  }
+
+  grid.innerHTML = '';
+  list.forEach(b => {
+    const sec = timerState[b.id];
+    const tCls = timerClass(sec);
+    const totalRewards = b.stages.reduce((a,st)=>a+st.rewards.length,0);
+    const preview = previewRewards(b);
+    const isOpen = openCard === b.id;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-level">LEVEL ${b.level}</div>
+        <div>
+          <div class="card-timer ${tCls}" data-timer="${b.id}">${fmtTimer(sec)}</div>
+          <div class="card-timer-label">remaining</div>
+        </div>
+      </div>
+      <div class="card-title">${b.title}</div>
+      <div class="card-sub"><span class="rotation-tag">Rotation ${b.rotation}</span></div>
+      <div class="card-faction">${loc.faction}</div>
+      <div class="card-footer">
+        <div class="reward-preview"><b>${b.stages.length} stages</b> · ${totalRewards} possible rewards</div>
+        <button class="view-rewards ${isOpen?'open':''}" data-toggle="${b.id}">${isOpen?'Hide':'View Rewards →'}</button>
+      </div>
+      <div class="detail ${isOpen?'open':''}" id="detail-${b.id}">
+        <div class="detail-inner">
+          <div class="stage-tabs" id="stagetabs-${b.id}"></div>
+          <table class="reward-table">
+            <thead><tr><th>Reward</th><th>Chance</th></tr></thead>
+            <tbody id="rewardbody-${b.id}"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    if(isOpen){
+      renderStageTabs(b);
+      renderRewardTable(b);
+    }
+  });
+
+  grid.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-toggle');
+      openCard = (openCard === id) ? null : id;
+      if(openCard && !(openCard in openStage)) openStage[openCard] = 0;
+      renderBounties();
+    });
+  });
+}
+
+function renderStageTabs(b){
+  const wrap = document.getElementById('stagetabs-'+b.id);
+  if(!wrap) return;
+  const activeIdx = openStage[b.id] ?? 0;
+  wrap.innerHTML = b.stages.map((st,i) =>
+    `<button class="stage-tab ${i===activeIdx?'active':''}" data-stage="${b.id}:${i}">STAGE ${i+1}</button>`
+  ).join('');
+  wrap.querySelectorAll('[data-stage]').forEach(t => {
+    t.addEventListener('click', () => {
+      const [id, idx] = t.getAttribute('data-stage').split(':');
+      openStage[id] = parseInt(idx,10);
+      renderStageTabs(b);
+      renderRewardTable(b);
+    });
+  });
+}
+
+function renderRewardTable(b){
+  const body = document.getElementById('rewardbody-'+b.id);
+  if(!body) return;
+  const idx = openStage[b.id] ?? 0;
+  const stage = b.stages[idx];
+  body.innerHTML = stage.rewards.map(r => `
+    <tr>
+      <td class="reward-name"><span class="rarity-dot ${rarityOf(r.name)}"></span>${r.name}</td>
+      <td>
+        <div class="reward-bar-wrap">
+          <div class="reward-bar"><div class="reward-bar-fill" style="width:${Math.min(r.chance,100)}%"></div></div>
+          <span class="reward-chance">${r.chance}%</span>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ---------------- TIMER TICK ---------------- */
+
+setInterval(() => {
+  let changed = false;
+  Object.keys(timerState).forEach(id => {
+    if(timerState[id] > 0){ timerState[id]--; changed = true; }
+    else {
+      const [loc, tier] = id.split('-');
+      const rand = seededRandom(Date.now() % 100000 + id.length);
+      timerState[id] = 180 + Math.floor(rand()*1400);
+    }
+  });
+  // lightweight update: just refresh timer text/classes without full re-render
+  document.querySelectorAll('[data-timer]').forEach(el => {
+    const id = el.getAttribute('data-timer');
+    const sec = timerState[id];
+    el.textContent = fmtTimer(sec);
+    el.className = 'card-timer ' + timerClass(sec);
+  });
+}, 1000);
+
+/* ---------------- SEARCH ---------------- */
+
+function runSearch(query){
+  const resultsEl = document.getElementById('searchResults');
+  const bountySection = document.getElementById('bountySection');
+  const scopeChips = document.getElementById('searchScopeChips');
+
+  if(!query.trim()){
+    resultsEl.style.display = 'none';
+    bountySection.style.display = '';
+    scopeChips.style.display = 'none';
+    return;
+  }
+
+  scopeChips.style.display = 'flex';
+  bountySection.style.display = 'none';
+  resultsEl.style.display = 'block';
+
+  const q = query.trim().toLowerCase();
+  const locsToSearch = searchScope === 'all' ? ['cetus','necralisk'] : [searchScope];
+  const matches = [];
+
+  locsToSearch.forEach(loc => {
+    bounties[loc].forEach(b => {
+      b.stages.forEach((st, si) => {
+        st.rewards.forEach(r => {
+          if(r.name.toLowerCase().includes(q)){
+            matches.push({ loc, bounty:b, stageLabel: st.label, stageIdx: si, chance:r.name.toLowerCase()===q ? r.chance : r.chance, name:r.name, chanceVal:r.chance });
+          }
+        });
+      });
+    });
+  });
+
+  matches.sort((a,b) => b.chanceVal - a.chanceVal);
+
+  if(matches.length === 0){
+    resultsEl.innerHTML = `<div class="sr-item-name">"${query}"</div><div class="sr-empty">No matching rewards found. Try a shorter search term.</div>`;
+    return;
+  }
+
+  const exactName = matches[0].name;
+  const grouped = matches.filter(m => m.name.toLowerCase() === q || m.name.toLowerCase().includes(q));
+  const displayName = grouped[0].name;
+
+  resultsEl.innerHTML = `
+    <div class="sr-header">Best available sources</div>
+    <div class="sr-item-name">${displayName.toUpperCase()}</div>
+    <div class="sr-list">
+      ${grouped.slice(0,10).map(m => `
+        <div class="sr-row">
+          <div class="sr-row-left">
+            <span class="sr-loc">${LOCATIONS[m.loc].name}</span>
+            <span class="sr-meta">Level ${m.bounty.level} Bounty · ${m.stageLabel}</span>
+          </div>
+          <span class="sr-chance">${m.chanceVal}%</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ---------------- EVENTS ---------------- */
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentLoc = tab.getAttribute('data-loc');
+    openCard = null;
+    renderCycle();
+    renderBounties();
+  });
+});
+
+document.getElementById('levelFilter').addEventListener('change', (e) => {
+  levelFilterVal = e.target.value;
+  renderBounties();
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  runSearch(e.target.value);
+});
+
+document.querySelectorAll('#searchScopeChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#searchScopeChips .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    searchScope = chip.getAttribute('data-scope');
+    runSearch(document.getElementById('searchInput').value);
+  });
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  fetchCycles().finally(() => setTimeout(()=>btn.classList.remove('spinning'), 500));
+});
+
+/* ---------------- INIT ---------------- */
+
+renderBounties();
+fetchCycles();
+</script>
+</body>
+</html>
